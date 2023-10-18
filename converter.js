@@ -89,7 +89,7 @@ function converter(input) {
         parseColumnInfo()
         createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${columnInfo})`)
       }
-      let query = `INSERT INTO ${tables[index]} (${columns}, inserted_at, updated_at) VALUES (${values}, NOW(), NOW())`
+      let query = `INSERT INTO ${tables[index]} (id, ${columns}, inserted_at, updated_at) VALUES (${i}, ${values}, NOW(), NOW())`
       query = query.replace(/\"/g, "'");
       valueInserts.push(query)
     }
@@ -99,7 +99,7 @@ function converter(input) {
     convertObject(tableItem)
     parseColumnInfo()
     createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${columnInfo})`)
-    let query = `INSERT INTO ${tables[index]} (${columns}, inserted_at, updated_at) VALUES (${values}, NOW(), NOW())`
+    let query = `INSERT INTO ${tables[index]} (id, ${columns}, inserted_at, updated_at) VALUES (${i}, ${values}, NOW(), NOW())`
     query = query.replace(/\"/g, "'");
     valueInserts.push(query)
   }
@@ -113,11 +113,11 @@ function converter(input) {
       if(typeof value === 'object') {
         value = 
           value.every(val => typeof val === 'number' && val.countDecimals() === 7) ? "point(" + value + ")" :
-          "ARRAY [" + value.reduce((acc, val, index) => acc + val + (index === value.length - 1 ? "" : ","), "") + "]"
+          "'{" + value.reduce((acc, val, index) => acc + val + (index === value.length - 1 ? "" : ","), "") + "}'"
       }
-      if (typeof value === 'string') value = "\"" + value + "\"";
-      if (value > 999999999) value = "TIMESTAMP 'epoch' + " + value + " * INTERVAL '1 second'"
-      if (value == null) value = "\"\""
+      else if (typeof value === 'string') value = "\"" + value + "\"";
+      else if (value > 999999999) value = "TIMESTAMP 'epoch' + " + value + " * INTERVAL '1 second'"
+      else if (value == null) value = "\"\""
 
       values.push(value);
     }
