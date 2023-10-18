@@ -110,15 +110,13 @@ function converter(input) {
     for (var i in item) {
       columns.push(i);
       let value = item[i]
-      if(typeof value === 'object' && value.every(val => typeof val === 'number' && val.countDecimals() === 7)) {
-        value = "point(" + value + ")"
-      }
-      if(typeof value === 'object' && value.some(val => typeof val === 'string' && val.includes('https://'))) {
-        links = value.reduce((acc, val) => acc + val + ",", "")
-        value = "ARRAY [" + links + "]"
+      if(typeof value === 'object') {
+        value = 
+          value.every(val => typeof val === 'number' && val.countDecimals() === 7) ? "point(" + value + ")" :
+          "ARRAY [" + value.reduce((acc, val, index) => acc + val + (index === value.length - 1 ? "" : ","), "") + "]"
       }
       if (typeof value === 'string') value = "\"" + value + "\"";
-      if (value > 999999999) value = "TIMESTAMP 'epoch' + " + value + "* INTERVAL '1 second'"
+      if (value > 999999999) value = "TIMESTAMP 'epoch' + " + value + " * INTERVAL '1 second'"
       if (value == null) value = "\"\""
 
       values.push(value);
