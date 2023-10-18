@@ -17,6 +17,19 @@ parseIfNotExist();
  * ===========================
  */
 
+Number.prototype.countDecimals = function () {
+
+  if (Math.floor(this.valueOf()) === this.valueOf()) return 0;
+
+  var str = this.toString();
+  if (str.indexOf(".") !== -1 && str.indexOf("-") !== -1) {
+      return str.split("-")[1] || 0;
+  } else if (str.indexOf(".") !== -1) {
+      return str.split(".")[1].length || 0;
+  }
+  return str.split("-")[1] || 0;
+}
+
 function parseIfNotExist(){
   fs.open(sqlFilename, 'r', function (fileNotExist, _) {
     if (fileNotExist) {
@@ -44,7 +57,7 @@ function converter(input) {
   jsonfile.readFile(jsonFilename, (err, data) => {
     if (err) return console.error(err);
 
-    const source = data.Data.Data;
+    const source = data;
     fetchTables(source);
     for (let i = 0; i < tables.length; i++) {
       const tableItem = source[tables[i]];
@@ -76,7 +89,8 @@ function converter(input) {
         parseColumnInfo()
         createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${columnInfo})`)
       }
-      const query = `INSERT INTO ${tables[index]} (${columns}) VALUES (${values})`;
+      let query = `INSERT INTO ${tables[index]} (${columns}, inserted_at, updated_at) VALUES (${values}, NOW(), NOW())`
+      query = query.replace(/\"/g, "'");
       valueInserts.push(query)
     }
   }
@@ -85,7 +99,8 @@ function converter(input) {
     convertObject(tableItem)
     parseColumnInfo()
     createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${columnInfo})`)
-    const query = `INSERT INTO ${tables[index]} (${columns}) VALUES (${values})`
+    let query = `INSERT INTO ${tables[index]} (${columns}, inserted_at, updated_at) VALUES (${values}, NOW(), NOW())`
+    query = query.replace(/\"/g, "'");
     valueInserts.push(query)
   }
 
@@ -95,12 +110,17 @@ function converter(input) {
     for (var i in item) {
       columns.push(i);
       let value = item[i]
-      if (typeof value === 'string') {
-        value = "\"" + value + "\"";
+      if(typeof value === 'object' && value.every(val => typeof val === 'number' && val.countDecimals() === 7)) {
+        value = "point(" + value + ")"
       }
-      if (value == null) {
-        value = "\"\""
+      if(typeof value === 'object' && value.some(val => typeof val === 'string' && val.includes('https://'))) {
+        links = value.reduce((acc, val) => acc + val + ",", "")
+        value = "ARRAY [" + links + "]"
       }
+      if (typeof value === 'string') value = "\"" + value + "\"";
+      if (value > 999999999) value = "TIMESTAMP 'epoch' + " + value + "* INTERVAL '1 second'"
+      if (value == null) value = "\"\""
+
       values.push(value);
     }
   }
