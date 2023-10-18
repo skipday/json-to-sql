@@ -47,11 +47,11 @@ function converter(input) {
 
   const tables = [];
   var columns = [];
-  var columnTypes = [];
   var columnInfo = [];
   var values = [];
   const valueInserts = [];
   const createTables = [];
+  const timestampKeys = ["inserted_at", "updated_at"]
 
   // use jsonfile module to read json file
   jsonfile.readFile(jsonFilename, (err, data) => {
@@ -86,20 +86,24 @@ function converter(input) {
       convertObject(tableItem[i]);
       if (i == 1) {
         columnInfo = []
-        parseColumnInfo()
+        columns.forEach((col, i) => parseColumnInfo(col, i))
         createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${columnInfo})`)
       }
-      let query = `INSERT INTO ${tables[index]} (id, ${columns}, inserted_at, updated_at) VALUES (${i}, ${values}, NOW(), NOW())`
+      const toAddKeys = timestampKeys.filter(key => !columns.includes(key))
+      let query = `INSERT INTO ${tables[index]} (id,${columns}, ${toAddKeys}) VALUES (${i}, ${values},${toAddKeys.map(_key => "NOW()")})`
       query = query.replace(/\"/g, "'");
       valueInserts.push(query)
     }
+    columns = columns.sort(col => timestampKeys.includes(col) ? 1 : -1)
   }
 
   function parseObject(tableItem, index) {
     convertObject(tableItem)
-    parseColumnInfo()
+    columns.forEach((col, i) => parseColumnInfo(col, i))
     createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${columnInfo})`)
-    let query = `INSERT INTO ${tables[index]} (id, ${columns}, inserted_at, updated_at) VALUES (${i}, ${values}, NOW(), NOW())`
+    const toAddKeys = timestampKeys.filter(key => !columns.includes(key))
+    columns = columns.sort(col => timestampKeys.includes(col) ? 1 : -1)
+    let query = `INSERT INTO ${tables[index]} (id,${columns}, ${toAddKeys}) VALUES (${i}, ${values},${toAddKeys.map(_key => "NOW()")})`
     query = query.replace(/\"/g, "'");
     valueInserts.push(query)
   }
@@ -123,17 +127,17 @@ function converter(input) {
     }
   }
 
-  function parseColumnInfo() {
-    for (var i = 0; i < columns.length; i++) {
-      if (typeof (values[i]) == "string") {
-        columnTypes = "TEXT"
-        columnInfo.push(`${columns[i]} ${columnTypes}`)
-      }
-      else if (typeof (values[i]) == "number") {
-        columnTypes = "INTERGER"
-        columnInfo.push(`${columns[i]} ${columnTypes}`)
-      }
+  function parseColumnInfo(column, i) {
+    let columnTypes = ""
+    if(typeof (values[i]) == "string") {
+      if (values[i].includes("TIMESTAMP")) columnTypes = "TIMESTAMP"
+      else if (values[i].includes("point")) columnTypes = "POINT"
+      else if (values[i].includes("TIMESTAMP")) columnTypes = "TIMESTAMP"
+      else columnTypes = "TEXT"
     }
+    else if (typeof (values[i]) == "number") columnTypes = "INTERGER"
+
+    columnInfo.push(`${column} ${columnTypes}`)
   }
  
   function toSql(queries) {
