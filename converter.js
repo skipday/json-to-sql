@@ -43,7 +43,6 @@ function converter(input) {
 
   const tables = [];
   var columns = [];
-  var columnInfo = [];
   var values = [];
   const valueInserts = [];
   const createTables = [];
@@ -77,17 +76,22 @@ function converter(input) {
     }
   }
 
+  function insertTableHeader(index){
+    const unsortedColumns = [...columns, ...timestampKeys.filter(key => !columns.includes(key))].map((col, i) => parseColumnInfo(col, i))
+    const sortedColumns = unsortedColumns.sort((a,b) => 
+      a.includes('inserted_at') && (!b.includes('inserted_at') && !b.includes('updated_at')) ? 1 :
+      a.includes('updated_at') && !b.includes('updated_at') ? 1 : -1
+    )
+    console.log(sortedColumns)
+    createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${sortedColumns})`)
+  }
+
   function parseArray(tableItem, index) {
     for (var i = 0; i < tableItem.length; i++) {
       convertObject(tableItem[i]);
-      if (i == 1) {
-        columnInfo = []
-        columns.forEach((col, i) => parseColumnInfo(col, i))
-        createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${columnInfo})`)
-      }
+      if (i == 1) insertTableHeader(index)
       const toAddKeys = timestampKeys.filter(key => !columns.includes(key))
       const allValueKeysSorted = [i, ...values.sort((a,b) => a.includes('TIMESTAMP') && !b.includes('TIMESTAMP') ? 1 : -1), ...toAddKeys.map(_key => "NOW()")];
-
       const allColumnKeysSorted = [i, ...columns.sort((a,b) => a.includes('inserted_at') && !b.includes('inserted_at') ? 1 : -1), ...toAddKeys]
       let query = `INSERT INTO ${tables[index]} (${allColumnKeysSorted}) VALUES (${allValueKeysSorted})`
       query = query.replace(/\"/g, "'");
@@ -128,15 +132,14 @@ function converter(input) {
 
   function parseColumnInfo(column, i) {
     let columnTypes = ""
-    if(typeof (values[i]) == "string") {
+    if(["inserted_at", "updated_at"].includes(column)) columnTypes = "TIMESTAMP"
+    else if(typeof (values[i]) == "string") {
       if (values[i].includes("TIMESTAMP")) columnTypes = "TIMESTAMP"
       else if (values[i].includes("point")) columnTypes = "POINT"
-      else if (values[i].includes("TIMESTAMP")) columnTypes = "TIMESTAMP"
       else columnTypes = "TEXT"
     }
     else if (typeof (values[i]) == "number") columnTypes = "INTERGER"
-
-    columnInfo.push(`${column} ${columnTypes}`)
+    return `${column} ${columnTypes}`
   }
  
   function toSql(queries) {
