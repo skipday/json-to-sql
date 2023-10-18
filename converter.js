@@ -32,11 +32,7 @@ Number.prototype.countDecimals = function () {
 
 function parseIfNotExist(){
   fs.open(sqlFilename, 'r', function (fileNotExist, _) {
-    if (fileNotExist) {
-      converter(input);
-    } else {
-      console.log("output file already exists!");
-    }
+    converter(input);
   })
 }
 
@@ -90,23 +86,26 @@ function converter(input) {
         createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${columnInfo})`)
       }
       const toAddKeys = timestampKeys.filter(key => !columns.includes(key))
-      let query = `INSERT INTO ${tables[index]} (id,${columns}, ${toAddKeys}) VALUES (${i}, ${values},${toAddKeys.map(_key => "NOW()")})`
+      const allValueKeysSorted = [i, ...values.sort((a,b) => a.includes('TIMESTAMP') && !b.includes('TIMESTAMP') ? 1 : -1), ...toAddKeys.map(_key => "NOW()")];
+
+      const allColumnKeysSorted = [i, ...columns.sort((a,b) => a.includes('inserted_at') && !b.includes('inserted_at') ? 1 : -1), ...toAddKeys]
+      let query = `INSERT INTO ${tables[index]} (${allColumnKeysSorted}) VALUES (${allValueKeysSorted})`
       query = query.replace(/\"/g, "'");
       valueInserts.push(query)
     }
-    columns = columns.sort(col => timestampKeys.includes(col) ? 1 : -1)
   }
 
-  function parseObject(tableItem, index) {
-    convertObject(tableItem)
-    columns.forEach((col, i) => parseColumnInfo(col, i))
-    createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${columnInfo})`)
-    const toAddKeys = timestampKeys.filter(key => !columns.includes(key))
-    columns = columns.sort(col => timestampKeys.includes(col) ? 1 : -1)
-    let query = `INSERT INTO ${tables[index]} (id,${columns}, ${toAddKeys}) VALUES (${i}, ${values},${toAddKeys.map(_key => "NOW()")})`
-    query = query.replace(/\"/g, "'");
-    valueInserts.push(query)
-  }
+  // function parseObject(tableItem, index) {
+  //   convertObject(tableItem)
+  //   columns.forEach((col, i) => parseColumnInfo(col, i))
+  //   createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${columnInfo})`)
+  //   const toAddKeys = timestampKeys.filter(key => !columns.includes(key))
+  //   const allKeys = [i, ...values, ...toAddKeys]
+  //   console.log(allKeys)
+  //   let query = `INSERT INTO ${tables[index]} (id,${columns}, ${toAddKeys}) VALUES (${i}, ${values},${toAddKeys.map(_key => "NOW()")})`
+  //   query = query.replace(/\"/g, "'");
+  //   valueInserts.push(query)
+  // }
 
   function convertObject(item) {
     columns = [];
