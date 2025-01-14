@@ -82,7 +82,6 @@ function converter(input) {
       a.includes('inserted_at') && (!b.includes('inserted_at') && !b.includes('updated_at')) ? 1 :
       a.includes('updated_at') && !b.includes('updated_at') ? 1 : -1
     )
-    console.log(sortedColumns)
     createTables.push(`CREATE TABLE IF NOT EXISTS ${tables[index]} (${sortedColumns})`)
   }
 
@@ -92,7 +91,7 @@ function converter(input) {
       if (i == 1) insertTableHeader(index)
       const toAddKeys = timestampKeys.filter(key => !columns.includes(key))
       const allValueKeysSorted = [i, ...values.sort((a,b) => a.includes('TIMESTAMP') && !b.includes('TIMESTAMP') ? 1 : -1), ...toAddKeys.map(_key => "NOW()")];
-      const allColumnKeysSorted = [i, ...columns.sort((a,b) => a.includes('inserted_at') && !b.includes('inserted_at') ? 1 : -1), ...toAddKeys]
+      const allColumnKeysSorted = ['id', ...columns.sort((a,b) => a.includes('inserted_at') && !b.includes('inserted_at') ? 1 : -1), ...toAddKeys]
       let query = `INSERT INTO ${tables[index]} (${allColumnKeysSorted}) VALUES (${allValueKeysSorted})`
       query = query.replace(/\"/g, "'");
       valueInserts.push(query)
